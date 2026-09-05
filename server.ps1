@@ -1,5 +1,6 @@
 # GM Constructions Live Preview & Auto-Reload Server
 $port = 8080
+$bindHost = if ($env:GM_BIND_HOST) { $env:GM_BIND_HOST } else { "+" }
 $root = $PSScriptRoot
 if (-not $root) { $root = "D:\GM" }
 $dataFile = Join-Path $root "private-data.json"
@@ -12,7 +13,7 @@ if (-not (Test-Path $dataFile)) {
 }
 
 $listener = New-Object System.Net.HttpListener
-$prefix = "http://localhost:$port/"
+$prefix = "http://${bindHost}:$port/"
 $listener.Prefixes.Add($prefix)
 
 try {
@@ -20,10 +21,17 @@ try {
     Write-Host "==========================================================" -ForegroundColor Cyan
     Write-Host "  GM Constructions Live Preview Server Started!           " -ForegroundColor Green
     Write-Host "  URL: $prefix                                            " -ForegroundColor Yellow
+    $lanAddress = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } |
+        Select-Object -First 1 -ExpandProperty IPAddress)
+    if ($lanAddress) {
+        Write-Host "  Phone URL: http://${lanAddress}:$port/                  " -ForegroundColor Yellow
+        Write-Host "  Admin URL: http://${lanAddress}:$port/admin.html       " -ForegroundColor Yellow
+    }
     Write-Host "  Live Reload: ACTIVE (Auto-refreshes when files change)  " -ForegroundColor Green
     Write-Host "==========================================================" -ForegroundColor Cyan
 } catch {
-    Write-Error "Failed to start listener on port $port : $_"
+    Write-Error "Failed to start listener on port $port. Run PowerShell as Administrator once and execute: netsh http add urlacl url=http://+:$port/ user=Everyone. Details: $_"
     exit 1
 }
 

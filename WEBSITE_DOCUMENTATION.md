@@ -214,3 +214,5 @@ $env:GM_ADMIN_PASSWORD = "use-a-long-unique-password"
 ```
 
 Open `http://localhost:8080/admin.html`. The dashboard stores visitor and enquiry data in `private-data.json`, which is generated locally and must not be committed. For a public deployment, host the API behind HTTPS and use a proper database and identity provider; GitHub Pages alone cannot run this admin API.
+
+To open the site from another phone on the same Wi-Fi, run the server on the computer's LAN address and allow PowerShell through Windows Firewall when prompted. Use the printed `Phone URL` and `Admin URL`, for example `http://192.168.1.20:8080/admin.html`, not `localhost`. If Windows reports a URL reservation error, run PowerShell as Administrator once and execute `netsh http add urlacl url=http://+:8080/ user=Everyone`.
