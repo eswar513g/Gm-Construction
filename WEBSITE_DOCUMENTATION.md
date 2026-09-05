@@ -191,3 +191,14 @@ const SITE_CONFIG = {
 };
 ```
 When GM Constructions modifies this file, the header, footer, contact section, WhatsApp triggers, and phone links are updated automatically!
+
+## 7. Analytics and Enquiry Setup
+
+The site supports privacy-conscious visitor measurement with Google Analytics and secure enquiry delivery with Formspree. In `js/config.js`, set:
+
+```javascript
+analyticsMeasurementId: "G-XXXXXXXXXX",
+enquiryFormEndpoint: "https://formspree.io/f/your-form-id",
+```
+
+Create the Google Analytics property and copy its web measurement ID. Then create a Formspree form, add the site owner's email, and copy its endpoint. Do not put passwords, API keys, or private tokens in this repository. The dashboard counts visitors in Google Analytics, while submitted customer enquiries appear in the Formspree inbox.

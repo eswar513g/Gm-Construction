@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 1. Initialize Site-wide Dynamic Data from config.js
   initSiteConfig(config);
+  initAnalytics(config);
 
   // 2. Navigation & Sticky Header
   initNavigation();
@@ -43,6 +44,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // 10. Back to Top Button
   initBackToTop();
 });
+
+function initAnalytics(config) {
+  const measurementId = String(config.analyticsMeasurementId || '').trim();
+  if (!measurementId || !/^G-[A-Z0-9]+$/i.test(measurementId)) return;
+
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+  window.gtag('js', new Date());
+  window.gtag('config', measurementId);
+
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
+  document.head.appendChild(script);
+}
 
 /* ==========================================================================
    1. Site Configuration Binding
@@ -643,7 +659,7 @@ function initForms(config) {
   const quoteForm = document.getElementById('mainQuoteForm');
   if (!quoteForm) return;
 
-  quoteForm.addEventListener('submit', (e) => {
+  quoteForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const name = document.getElementById('quoteName')?.value.trim();
@@ -671,11 +687,26 @@ function initForms(config) {
       Processing Request...
     `;
 
-    setTimeout(() => {
+    const formEndpoint = String(config.enquiryFormEndpoint || '').trim();
+    if (!formEndpoint || !/^https:\/\/formspree\.io\/f\/[A-Za-z0-9]+$/.test(formEndpoint)) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+      showToast('The enquiry form is not configured yet. Please call or WhatsApp us directly.');
+      return;
+    }
+
+    try {
+      const response = await fetch(formEndpoint, {
+        method: 'POST',
+        body: new FormData(quoteForm),
+        headers: { Accept: 'application/json' }
+      });
+
+      if (!response.ok) throw new Error('Form submission failed');
+
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalText;
       quoteForm.reset();
-
       showToast(`Thank you, ${name}! Your quote request has been received. Our project team will call you at ${phone} within 2 business hours.`);
 
       // Optional quick handover prompt to open WhatsApp
@@ -684,7 +715,11 @@ function initForms(config) {
         const waMsg = `Hi GM Constructions, I just requested a quote on your website:\n- Name: ${name}\n- Phone: ${phone}\n- Project Type: ${type}\n- Location: ${location || 'N/A'}\n- Message: ${message || 'Site consultation requested'}`;
         window.open(`https://wa.me/${String(config.whatsappNumber || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}`, '_blank');
       }
-    }, 1200);
+    } catch (error) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+      showToast('We could not send your enquiry. Please call or WhatsApp us directly.');
+    }
   });
 }
 

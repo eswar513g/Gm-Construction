@@ -25,7 +25,13 @@ const SITE_CONFIG = {
   businessHours: "Monday – Saturday: 9:00 AM – 6:00 PM",
   sundayHours: "Sunday: Closed (Site Emergencies by Appointment)",
 
-  // 3. Social Media Links
+  // 3. Analytics and enquiry delivery
+  // Replace these placeholders with your Google Analytics measurement ID and
+  // Formspree form endpoint before publishing the site.
+  analyticsMeasurementId: "",
+  enquiryFormEndpoint: "",
+
+  // 4. Social Media Links
   socials: {
     facebook: "https://facebook.com",
     instagram: "https://instagram.com",
