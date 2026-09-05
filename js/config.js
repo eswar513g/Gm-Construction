@@ -15,7 +15,7 @@ const SITE_CONFIG = {
   // 2. Verified Contact Details
   // Change these to your actual phone number, email, and address
   phoneDisplay: "+91 9493910136",
-  phoneRaw: "+91 9441784245",
+  phoneRaw: "+91  9493910136",
   secondaryPhone: "+91 9441784245",
   whatsappNumber: "91 9493910136", // Digits only with country code, no + or spaces
   whatsappPrefilledMessage: "Hello GM Constructions, I would like to inquire about a construction project and get a quote.",
@@ -42,9 +42,9 @@ const SITE_CONFIG = {
 
   // 4. Company Statistics (Animated Live Counters)
   statistics: [
-    { label: "Years of Experience", value: 16, suffix: "+" },
-    { label: "Completed Projects", value: 20, suffix: "+" },
-    { label: "Satisfied Clients", value: 80, suffix: "+" },
+    { label: "Years of Experience", value: 21, suffix: "+" },
+    { label: "Completed Projects", value: 18, suffix: "+" },
+    { label: "Satisfied Clients", value: 40, suffix: "+" },
     { label: "Engineers & Craftsmen", value: 60, suffix: "+" },
   ],
 
