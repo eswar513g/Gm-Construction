@@ -2,6 +2,14 @@
 $port = 8080
 $root = $PSScriptRoot
 if (-not $root) { $root = "D:\GM" }
+$dataFile = Join-Path $root "private-data.json"
+$adminId = if ($env:GM_ADMIN_ID) { $env:GM_ADMIN_ID } else { "admin" }
+$adminPassword = $env:GM_ADMIN_PASSWORD
+$sessions = @{}
+
+if (-not (Test-Path $dataFile)) {
+    '{"visits":0,"enquiries":[]}' | Set-Content -Path $dataFile -Encoding UTF8
+}
 
 $listener = New-Object System.Net.HttpListener
 $prefix = "http://localhost:$port/"
@@ -74,6 +82,35 @@ function Get-LatestFileTimestamp {
     return 0
 }
 
+function Send-JsonResponse($response, $statusCode, $payload) {
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes(($payload | ConvertTo-Json -Depth 6 -Compress))
+    $response.ContentType = "application/json; charset=utf-8"
+    $response.ContentLength64 = $bytes.Length
+    $response.StatusCode = $statusCode
+    $response.AddHeader("Access-Control-Allow-Origin", "*")
+    $response.OutputStream.Write($bytes, 0, $bytes.Length)
+    $response.Close()
+}
+
+function Read-RequestJson($request) {
+    $reader = New-Object System.IO.StreamReader($request.InputStream, $request.ContentEncoding)
+    try { return ($reader.ReadToEnd() | ConvertFrom-Json) } finally { $reader.Dispose() }
+}
+
+function Get-Data {
+    return (Get-Content -Raw -Path $dataFile | ConvertFrom-Json)
+}
+
+function Save-Data($data) {
+    $data | ConvertTo-Json -Depth 6 | Set-Content -Path $dataFile -Encoding UTF8
+}
+
+function New-SessionToken {
+    $bytes = New-Object byte[] 32
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    return ([Convert]::ToBase64String($bytes) -replace '[^A-Za-z0-9]', '')
+}
+
 while ($listener.IsListening) {
     try {
         $context = $listener.GetContext()
@@ -81,6 +118,67 @@ while ($listener.IsListening) {
         $response = $context.Response
 
         $urlPath = $request.Url.LocalPath
+
+        if ($request.HttpMethod -eq "OPTIONS" -and $urlPath.StartsWith("/api/")) {
+            $response.StatusCode = 204
+            $response.AddHeader("Access-Control-Allow-Origin", "*")
+            $response.AddHeader("Access-Control-Allow-Headers", "Content-Type, X-Admin-Token")
+            $response.AddHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            $response.Close()
+            continue
+        }
+
+        if ($urlPath -eq "/api/visit" -and $request.HttpMethod -eq "POST") {
+            $data = Get-Data
+            $data.visits = [int]$data.visits + 1
+            Save-Data $data
+            Send-JsonResponse $response 200 @{ success = $true }
+            continue
+        }
+
+        if ($urlPath -eq "/api/enquiry" -and $request.HttpMethod -eq "POST") {
+            $body = Read-RequestJson $request
+            $data = Get-Data
+            $data.enquiries += [PSCustomObject]@{
+                date = (Get-Date).ToUniversalTime().ToString("o")
+                name = [string]$body.name
+                phone = [string]$body.phone
+                email = [string]$body.email
+                projectType = [string]$body.projectType
+                location = [string]$body.location
+                message = [string]$body.message
+            }
+            Save-Data $data
+            Send-JsonResponse $response 201 @{ success = $true }
+            continue
+        }
+
+        if ($urlPath -eq "/api/admin/login" -and $request.HttpMethod -eq "POST") {
+            if ([string]::IsNullOrWhiteSpace($adminPassword)) {
+                Send-JsonResponse $response 503 @{ error = "GM_ADMIN_PASSWORD is not configured on the server." }
+                continue
+            }
+            $body = Read-RequestJson $request
+            if ([string]$body.id -ne $adminId -or [string]$body.password -ne $adminPassword) {
+                Send-JsonResponse $response 401 @{ error = "Invalid admin credentials." }
+                continue
+            }
+            $token = New-SessionToken
+            $sessions[$token] = (Get-Date).AddHours(8)
+            Send-JsonResponse $response 200 @{ token = $token }
+            continue
+        }
+
+        if ($urlPath -eq "/api/admin/stats" -and $request.HttpMethod -eq "GET") {
+            $token = $request.Headers["X-Admin-Token"]
+            if (-not $sessions.ContainsKey($token) -or $sessions[$token] -lt (Get-Date)) {
+                Send-JsonResponse $response 401 @{ error = "Unauthorized." }
+                continue
+            }
+            $data = Get-Data
+            Send-JsonResponse $response 200 @{ visits = [int]$data.visits; interested = @($data.enquiries).Count; enquiries = @($data.enquiries) }
+            continue
+        }
 
         # Handle Live Preview Version Endpoint
         if ($urlPath -eq "/__live_version") {

@@ -30,6 +30,7 @@ const SITE_CONFIG = {
   // Formspree form endpoint before publishing the site.
   analyticsMeasurementId: "",
   enquiryFormEndpoint: "",
+  apiBaseUrl: ".",
 
   // 4. Social Media Links
   socials: {

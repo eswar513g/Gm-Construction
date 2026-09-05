@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GM Constructions Admin</title>
+  <style>
+    :root { font-family: Segoe UI, sans-serif; color: #172033; background: #f3f5f7; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+    main { width: min(920px, calc(100% - 32px)); }
+    .panel { background: white; padding: 28px; border: 1px solid #dce2e8; border-radius: 8px; box-shadow: 0 12px 32px #17203312; }
+    h1 { margin-top: 0; } label { display: block; margin: 14px 0 6px; font-weight: 600; }
+    input, button { box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid #c9d1da; border-radius: 4px; font: inherit; }
+    button { margin-top: 18px; background: #d99a16; border-color: #d99a16; color: #fff; cursor: pointer; font-weight: 700; }
+    .error { color: #b42318; min-height: 24px; } .hidden { display: none; }
+    .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0; }
+    .stat { padding: 20px; background: #172033; color: #fff; border-radius: 6px; } .stat strong { display: block; font-size: 2.5rem; }
+    table { width: 100%; border-collapse: collapse; } th, td { text-align: left; padding: 10px 6px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    @media (max-width: 600px) { .stats { grid-template-columns: 1fr; } .panel { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="panel" id="loginPanel">
+      <h1>GM Constructions Admin</h1>
+      <p>Sign in to view visitor and enquiry totals.</p>
+      <form id="loginForm">
+        <label for="adminId">Admin ID</label>
+        <input id="adminId" required autocomplete="username">
+        <label for="adminPassword">Password</label>
+        <input id="adminPassword" type="password" required autocomplete="current-password">
+        <button type="submit">Sign in</button>
+      </form>
+      <p class="error" id="loginError"></p>
+    </section>
+    <section class="panel hidden" id="dashboardPanel">
+      <h1>Dashboard</h1>
+      <div class="stats"><div class="stat">Visitors<strong id="visitCount">0</strong></div><div class="stat">Interested customers<strong id="interestCount">0</strong></div></div>
+      <table><thead><tr><th>Date</th><th>Name</th><th>Phone</th><th>Project</th><th>Location</th></tr></thead><tbody id="enquiryRows"></tbody></table>
+      <button type="button" id="logoutButton">Sign out</button>
+      <p class="error" id="dashboardError"></p>
+    </section>
+  </main>
+  <script>
+    const apiBaseUrl = window.location.origin;
+    const loginPanel = document.getElementById('loginPanel');
+    const dashboardPanel = document.getElementById('dashboardPanel');
+    const loginError = document.getElementById('loginError');
+    const dashboardError = document.getElementById('dashboardError');
+    document.getElementById('loginForm').addEventListener('submit', async event => {
+      event.preventDefault(); loginError.textContent = '';
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/admin/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: adminId.value, password: adminPassword.value }) });
+        const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Login failed');
+        sessionStorage.setItem('gmAdminToken', result.token); await loadDashboard();
+      } catch (error) { loginError.textContent = error.message; }
+    });
+    async function loadDashboard() {
+      dashboardError.textContent = '';
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/admin/stats`, { headers: { 'X-Admin-Token': sessionStorage.getItem('gmAdminToken') || '' } });
+        const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Unable to load dashboard');
+        visitCount.textContent = result.visits; interestCount.textContent = result.interested;
+        enquiryRows.innerHTML = result.enquiries.map(item => `<tr><td>${new Date(item.date).toLocaleString()}</td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.phone)}</td><td>${escapeHtml(item.projectType)}</td><td>${escapeHtml(item.location)}</td></tr>`).join('');
+        loginPanel.classList.add('hidden'); dashboardPanel.classList.remove('hidden');
+      } catch (error) { sessionStorage.removeItem('gmAdminToken'); dashboardError.textContent = error.message; }
+    }
+    function escapeHtml(value) { return String(value || '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character])); }
+    logoutButton.addEventListener('click', () => { sessionStorage.removeItem('gmAdminToken'); dashboardPanel.classList.add('hidden'); loginPanel.classList.remove('hidden'); });
+    if (sessionStorage.getItem('gmAdminToken')) loadDashboard();
+  </script>
+</body>
+</html>

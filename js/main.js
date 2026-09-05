@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1. Initialize Site-wide Dynamic Data from config.js
   initSiteConfig(config);
   initAnalytics(config);
+  trackPageVisit(config);
 
   // 2. Navigation & Sticky Header
   initNavigation();
@@ -58,6 +59,12 @@ function initAnalytics(config) {
   script.async = true;
   script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
   document.head.appendChild(script);
+}
+
+function trackPageVisit(config) {
+  const apiBaseUrl = String(config.apiBaseUrl || '').trim().replace(/\/$/, '');
+  if (!apiBaseUrl) return;
+  fetch(`${apiBaseUrl}/api/visit`, { method: 'POST', keepalive: true }).catch(() => {});
 }
 
 /* ==========================================================================
@@ -688,7 +695,9 @@ function initForms(config) {
     `;
 
     const formEndpoint = String(config.enquiryFormEndpoint || '').trim();
-    if (!formEndpoint || !/^https:\/\/formspree\.io\/f\/[A-Za-z0-9]+$/.test(formEndpoint)) {
+    const apiBaseUrl = String(config.apiBaseUrl || '').trim().replace(/\/$/, '');
+    const hasFormspree = /^https:\/\/formspree\.io\/f\/[A-Za-z0-9]+$/.test(formEndpoint);
+    if (!hasFormspree && !apiBaseUrl) {
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalText;
       showToast('The enquiry form is not configured yet. Please call or WhatsApp us directly.');
@@ -696,13 +705,22 @@ function initForms(config) {
     }
 
     try {
-      const response = await fetch(formEndpoint, {
-        method: 'POST',
-        body: new FormData(quoteForm),
-        headers: { Accept: 'application/json' }
-      });
+      if (hasFormspree) {
+        const response = await fetch(formEndpoint, {
+          method: 'POST',
+          body: new FormData(quoteForm),
+          headers: { Accept: 'application/json' }
+        });
+        if (!response.ok) throw new Error('Form submission failed');
+      }
 
-      if (!response.ok) throw new Error('Form submission failed');
+      if (apiBaseUrl) {
+        await fetch(`${apiBaseUrl}/api/enquiry`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, email, projectType: type, location, message })
+        });
+      }
 
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalText;

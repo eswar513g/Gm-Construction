@@ -202,3 +202,15 @@ enquiryFormEndpoint: "https://formspree.io/f/your-form-id",
 ```
 
 Create the Google Analytics property and copy its web measurement ID. Then create a Formspree form, add the site owner's email, and copy its endpoint. Do not put passwords, API keys, or private tokens in this repository. The dashboard counts visitors in Google Analytics, while submitted customer enquiries appear in the Formspree inbox.
+
+## 8. Private Admin Dashboard
+
+Run the included PowerShell server for server-side counts and the private dashboard:
+
+```powershell
+$env:GM_ADMIN_ID = "your-admin-id"
+$env:GM_ADMIN_PASSWORD = "use-a-long-unique-password"
+.\server.ps1
+```
+
+Open `http://localhost:8080/admin.html`. The dashboard stores visitor and enquiry data in `private-data.json`, which is generated locally and must not be committed. For a public deployment, host the API behind HTTPS and use a proper database and identity provider; GitHub Pages alone cannot run this admin API.
